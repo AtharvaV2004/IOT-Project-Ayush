@@ -46,9 +46,20 @@ export default function DashboardLayout({
           setDevices(userDevices);
           setSelectedDeviceId(userDevices[0].device_id);
         } else {
-          // If no device exists yet for this user, we can auto-seed or show CC001 placeholder
+          // If no devices owned by this user yet, auto-assign CC001 so any user can monitor and control it
+          try {
+            await supabase.from('devices').upsert({
+              device_id: 'CC001',
+              name: 'Cold Storage Unit 01 (ESP32)',
+              device_token: 'coldchain_secret_device_token_2026',
+              owner_id: user.id,
+            }, { onConflict: 'device_id' });
+          } catch (e) {
+            console.log('Device auto-assign notice:', e);
+          }
+
           const defaultDevice: Device = {
-            id: 'temp-id',
+            id: 'cc001-id',
             device_id: 'CC001',
             name: 'Cold Storage Unit 01 (ESP32)',
             owner_id: user.id,
