@@ -23,6 +23,23 @@ async function assignDeviceToUsers() {
       }, { onConflict: 'device_id' });
     
     console.log(`✅ Device CC001 assigned to: ${user.email} (ID: ${user.id})`);
+
+    const additionalUser = usersData?.users?.find(
+      u => u.email?.toLowerCase() === 'ayushbthaokar@gmail.com'
+    );
+    if (additionalUser) {
+      const { error: accessErr } = await supabase
+        .from('device_access')
+        .upsert({
+          device_id: 'CC001',
+          user_id: additionalUser.id,
+        }, { onConflict: 'device_id,user_id' });
+      if (accessErr) {
+        console.error('❌ Failed to grant additional operator access:', accessErr.message);
+      } else {
+        console.log(`✅ Device CC001 also shared with: ${additionalUser.email}`);
+      }
+    }
   }
 }
 

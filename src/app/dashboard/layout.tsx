@@ -35,11 +35,10 @@ export default function DashboardLayout({
 
         setUserEmail(user.email || 'Operator');
 
-        // Fetch user's registered devices
+        // RLS returns devices owned by or shared with the authenticated user.
         const { data: userDevices } = await supabase
           .from('devices')
           .select('*')
-          .eq('owner_id', user.id)
           .order('created_at', { ascending: true });
 
         if (userDevices && userDevices.length > 0) {

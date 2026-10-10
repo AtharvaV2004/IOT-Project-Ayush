@@ -25,6 +25,20 @@ CREATE INDEX IF NOT EXISTS idx_devices_device_id ON public.devices(device_id);
 CREATE INDEX IF NOT EXISTS idx_devices_owner_id ON public.devices(owner_id);
 
 -- ============================================================================
+-- 2.1 TABLE: device_access
+-- Allows more than one authenticated operator to monitor and control a device.
+-- The devices.owner_id remains the primary owner.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.device_access (
+    device_id VARCHAR(64) NOT NULL REFERENCES public.devices(device_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (device_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_access_user_id ON public.device_access(user_id);
+
+-- ============================================================================
 -- 3. TABLE: sensor_readings
 -- Time-series telemetry data uploaded by the ESP32 devices.
 -- ============================================================================
@@ -67,6 +81,28 @@ CREATE INDEX IF NOT EXISTS idx_commands_device_created ON public.device_commands
 ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sensor_readings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.device_commands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_access ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.user_has_device_access(target_device_id VARCHAR)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.devices
+        WHERE public.devices.device_id = target_device_id
+          AND public.devices.owner_id = auth.uid()
+    )
+    OR EXISTS (
+        SELECT 1
+        FROM public.device_access
+        WHERE public.device_access.device_id = target_device_id
+          AND public.device_access.user_id = auth.uid()
+    );
+$$;
 
 -- 5.1 Devices Table Policies
 DROP POLICY IF EXISTS "Users can view own devices" ON public.devices;
@@ -74,7 +110,7 @@ CREATE POLICY "Users can view own devices"
 ON public.devices 
 FOR SELECT 
 TO authenticated 
-USING (auth.uid() = owner_id);
+USING (public.user_has_device_access(device_id));
 
 DROP POLICY IF EXISTS "Users can insert own devices" ON public.devices;
 CREATE POLICY "Users can insert own devices" 
@@ -88,7 +124,42 @@ CREATE POLICY "Users can update own devices"
 ON public.devices 
 FOR UPDATE 
 TO authenticated 
-USING (auth.uid() = owner_id);
+USING (auth.uid() = owner_id)
+WITH CHECK (auth.uid() = owner_id);
+
+DROP POLICY IF EXISTS "Users can view their device access" ON public.device_access;
+CREATE POLICY "Users can view their device access"
+ON public.device_access
+FOR SELECT
+TO authenticated
+USING (
+    auth.uid() = user_id
+    OR EXISTS (
+        SELECT 1 FROM public.devices
+        WHERE public.devices.device_id = device_access.device_id
+        AND public.devices.owner_id = auth.uid()
+    )
+);
+
+DROP POLICY IF EXISTS "Device owners can manage device access" ON public.device_access;
+CREATE POLICY "Device owners can manage device access"
+ON public.device_access
+FOR ALL
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.devices
+        WHERE public.devices.device_id = device_access.device_id
+        AND public.devices.owner_id = auth.uid()
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.devices
+        WHERE public.devices.device_id = device_access.device_id
+        AND public.devices.owner_id = auth.uid()
+    )
+);
 
 -- 5.2 Sensor Readings Table Policies
 DROP POLICY IF EXISTS "Users can view readings of own devices" ON public.sensor_readings;
@@ -97,11 +168,7 @@ ON public.sensor_readings
 FOR SELECT 
 TO authenticated 
 USING (
-    EXISTS (
-        SELECT 1 FROM public.devices 
-        WHERE public.devices.device_id = sensor_readings.device_id 
-        AND public.devices.owner_id = auth.uid()
-    )
+    public.user_has_device_access(sensor_readings.device_id)
 );
 
 -- 5.3 Device Commands Table Policies
@@ -111,11 +178,7 @@ ON public.device_commands
 FOR SELECT 
 TO authenticated 
 USING (
-    EXISTS (
-        SELECT 1 FROM public.devices 
-        WHERE public.devices.device_id = device_commands.device_id 
-        AND public.devices.owner_id = auth.uid()
-    )
+    public.user_has_device_access(device_commands.device_id)
 );
 
 DROP POLICY IF EXISTS "Users can insert commands for own devices" ON public.device_commands;
@@ -124,9 +187,5 @@ ON public.device_commands
 FOR INSERT 
 TO authenticated 
 WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.devices 
-        WHERE public.devices.device_id = device_commands.device_id 
-        AND public.devices.owner_id = auth.uid()
-    )
+    public.user_has_device_access(device_commands.device_id)
 );

@@ -13,6 +13,8 @@ async function main() {
   // 1. Create or Find Operator User
   const email = 'admin@coldchain.com';
   const password = 'ColdChain@2026!';
+  const additionalEmail = process.env.ADDITIONAL_OPERATOR_EMAIL || 'Ayushbthaokar@gmail.com';
+  const additionalPassword = process.env.ADDITIONAL_OPERATOR_PASSWORD;
 
   console.log(`[1/4] Ensuring operator account '${email}' exists...`);
   let userId;
@@ -46,6 +48,44 @@ async function main() {
     return;
   }
 
+  let additionalUserId;
+  if (additionalPassword) {
+    // Ensure the additional operator can sign in with credentials supplied
+    // outside source control.
+    console.log(`[1/4] Ensuring additional operator account '${additionalEmail}' exists...`);
+    const existingAdditionalUser = usersData?.users?.find(
+      u => u.email?.toLowerCase() === additionalEmail.toLowerCase()
+    );
+
+    if (existingAdditionalUser) {
+      additionalUserId = existingAdditionalUser.id;
+      const { error: updateErr } = await supabase.auth.admin.updateUserById(
+        additionalUserId,
+        { password: additionalPassword, email_confirm: true }
+      );
+      if (updateErr) {
+        console.error('  -> Failed to update additional operator:', updateErr.message);
+      } else {
+        console.log(`  -> Additional operator confirmed: ${additionalUserId}`);
+      }
+    } else {
+      const { data: newAdditionalUser, error: additionalCreateErr } =
+        await supabase.auth.admin.createUser({
+          email: additionalEmail,
+          password: additionalPassword,
+          email_confirm: true,
+        });
+      if (additionalCreateErr) {
+        console.error('  -> Failed to create additional operator:', additionalCreateErr.message);
+      } else {
+        additionalUserId = newAdditionalUser.user.id;
+        console.log(`  -> Additional operator created: ${additionalUserId}`);
+      }
+    }
+  } else {
+    console.warn('  -> Skipping additional operator: set ADDITIONAL_OPERATOR_PASSWORD to provision it.');
+  }
+
   // 2. Register Device CC001
   console.log('[2/4] Registering Device CC001...');
   const { data: device, error: devErr } = await supabase
@@ -63,6 +103,20 @@ async function main() {
     console.error('  -> Device upsert error:', devErr.message);
   } else {
     console.log(`  -> Device CC001 registered successfully:`, device.id);
+
+    if (additionalUserId) {
+      const { error: accessErr } = await supabase
+        .from('device_access')
+        .upsert({
+          device_id: 'CC001',
+          user_id: additionalUserId,
+        }, { onConflict: 'device_id,user_id' });
+      if (accessErr) {
+        console.error('  -> Additional operator access error:', accessErr.message);
+      } else {
+        console.log(`  -> Device CC001 shared with ${additionalEmail}.`);
+      }
+    }
   }
 
   // 3. Initial Default Command
@@ -152,6 +206,8 @@ async function main() {
   console.log('Login Credentials:');
   console.log(`  - Email   : ${email}`);
   console.log(`  - Password: ${password}`);
+  console.log(`  - Additional Email   : ${additionalEmail}`);
+  console.log('  - Additional credentials: supplied through ADDITIONAL_OPERATOR_EMAIL/PASSWORD');
   console.log('  - Dashboard URL: http://localhost:3000/dashboard');
   console.log('======================================================');
 }

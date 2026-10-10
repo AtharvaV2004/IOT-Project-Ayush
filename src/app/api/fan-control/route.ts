@@ -133,12 +133,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Verify user ownership of the device
+    // 3. RLS verifies that the user owns or has shared access to the device.
     const { data: device, error: deviceErr } = await supabaseUserClient
       .from('devices')
       .select('id, device_id')
       .eq('device_id', deviceId)
-      .eq('owner_id', user.id)
       .single();
 
     if (deviceErr || !device) {

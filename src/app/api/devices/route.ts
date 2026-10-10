@@ -18,11 +18,10 @@ export async function GET() {
       );
     }
 
-    // Fetch all devices owned by user
+    // RLS filters this list to devices owned by or shared with the user.
     const { data: devices, error: devErr } = await supabase
       .from('devices')
       .select('id, device_id, name, created_at')
-      .eq('owner_id', user.id)
       .order('created_at', { ascending: true });
 
     if (devErr) {

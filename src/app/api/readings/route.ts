@@ -30,12 +30,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check device ownership
+    // RLS checks whether the user owns or has shared access to the device.
     const { data: device, error: devErr } = await supabase
       .from('devices')
       .select('id, device_id')
       .eq('device_id', deviceId)
-      .eq('owner_id', user.id)
       .single();
 
     if (devErr || !device) {
