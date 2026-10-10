@@ -13,7 +13,6 @@ import {
   Droplets,
   Loader2
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { SensorReading } from '@/types/database';
 
 export default function HistoryPage() {
@@ -26,16 +25,12 @@ export default function HistoryPage() {
   const fetchHistory = async () => {
     setRefreshing(true);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('sensor_readings')
-        .select('*')
-        .eq('device_id', 'CC001')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (data) {
-        setReadings(data);
+      const res = await fetch(`/api/readings?deviceId=CC001&limit=${limit}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setReadings(json.readings || []);
       }
     } catch (err) {
       console.error('Error fetching history:', err);

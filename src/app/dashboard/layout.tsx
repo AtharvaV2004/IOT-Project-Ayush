@@ -1,106 +1,63 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import Sidebar from '@/components/Sidebar';
 import { Device } from '@/types/database';
-import { Loader2, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+
+const INITIAL_DEVICES: Device[] = [
+  {
+    id: 'cc001-id',
+    device_id: 'CC001',
+    name: 'Cold Storage Unit 01 (ESP32)',
+    owner_id: 'station-operator',
+    created_at: new Date().toISOString(),
+  },
+];
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<Device[]>(INITIAL_DEVICES);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('CC001');
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    async function initSessionAndDevices() {
+    async function loadDevices() {
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-          error: authErr,
-        } = await supabase.auth.getUser();
-
-        if (authErr || !user) {
-          router.push('/login');
-          return;
-        }
-
-        setUserEmail(user.email || 'Operator');
-
-        // RLS returns devices owned by or shared with the authenticated user.
-        const { data: userDevices } = await supabase
-          .from('devices')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (userDevices && userDevices.length > 0) {
-          setDevices(userDevices);
-          setSelectedDeviceId(userDevices[0].device_id);
-        } else {
-          // If no devices owned by this user yet, auto-assign CC001 so any user can monitor and control it
-          try {
-            await supabase.from('devices').upsert({
-              device_id: 'CC001',
-              name: 'Cold Storage Unit 01 (ESP32)',
-              device_token: 'coldchain_secret_device_token_2026',
-              owner_id: user.id,
-            }, { onConflict: 'device_id' });
-          } catch (e) {
-            console.log('Device auto-assign notice:', e);
+        const res = await fetch('/api/devices');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.devices && data.devices.length > 0) {
+            setDevices(data.devices);
+            setSelectedDeviceId((prev) => 
+              data.devices.some((d: Device) => d.device_id === prev) ? prev : data.devices[0].device_id
+            );
           }
-
-          const defaultDevice: Device = {
-            id: 'cc001-id',
-            device_id: 'CC001',
-            name: 'Cold Storage Unit 01 (ESP32)',
-            owner_id: user.id,
-            created_at: new Date().toISOString(),
-          };
-          setDevices([defaultDevice]);
-          setSelectedDeviceId('CC001');
         }
       } catch (err) {
-        console.error('Error initializing dashboard layout:', err);
-      } finally {
-        setLoading(false);
+        console.error('Error loading devices from API:', err);
       }
     }
 
-    initSessionAndDevices();
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#080d1a] flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
-        </div>
-        <p className="text-xs text-slate-400 font-mono">Initializing ColdChain Portal...</p>
-      </div>
-    );
-  }
+    loadDevices();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#080d1a] flex flex-col md:flex-row text-slate-100">
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800 sticky top-0 z-50">
         <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500 flex items-center justify-center text-slate-950 font-bold text-xs">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-bold text-xs">
             CC
           </div>
-          <span className="font-bold text-sm">ColdChain Monitor</span>
+          <span className="font-bold text-sm tracking-tight">ColdChain Monitor</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300"
+          className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -115,7 +72,7 @@ export default function DashboardLayout({
             setSelectedDeviceId(id);
             setMobileMenuOpen(false);
           }}
-          userEmail={userEmail}
+          userEmail="Live Console Operator"
         />
       </div>
 

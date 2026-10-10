@@ -19,16 +19,16 @@
                                    ▼
 +-------------------------------------------------------------------------+
 |                           VERCEL (NEXT.JS 14)                           |
-|  - Ingestion & Auth Guard     - App Router Pages (/dashboard)           |
+|  - Open Operator Console      - App Router Pages (/dashboard)           |
 |  - Bi-directional Controls    - Real-time Recharts Telemetry Charts     |
 +-------------------------------------------------------------------------+
                                    ▲
-                      PostgreSQL Connection & RLS
+                      PostgreSQL Connection & Server Admin
                                    ▼
 +-------------------------------------------------------------------------+
 |                           SUPABASE CLOUD                                |
-|  - Auth (Email & Password)    - sensor_readings (Time-series table)     |
-|  - devices (Registered Units) - device_commands (Actuator Mode History) |
+|  - devices (Registered Units) - sensor_readings (Time-series table)     |
+|  - device_commands (Actuator) - Open Console & Edge Token Access        |
 +-------------------------------------------------------------------------+
 ```
 
@@ -52,9 +52,10 @@
 ### Step 1: Create a Supabase Project
 1. Go to [https://supabase.com](https://supabase.com) and create a free project.
 2. Under **Project Settings -> API**, copy:
-   - `Project URL` (e.g. `https://xyzcompany.supabase.co`)
-   - `anon public key`
-   - `service_role secret key` (keep private!)
+   - `Project URL` (e.g. `https://bhkzvkruimnpbzwpwwgv.supabase.co/rest/v1/`)
+   - `anon public key` eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoa3p2a3J1aW1ucGJ6d3B3d2d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NjIxMTksImV4cCI6MjEwNzEzODExOX0.5NIk-P1P36zQh7TCOIepFAW6ljV2eCbB7tqwkPjnGBA
+   - `service_role secret key`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoa3p2a3J1aW1ucGJ6d3B3d2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTU2MjExOSwiZXhwIjoyMTA3MTM4MTE5fQ.WF15N-tVgS8onqAG_iOhMb9WhYmMkUhQ8boimuGkTyc
+
 
 ---
 

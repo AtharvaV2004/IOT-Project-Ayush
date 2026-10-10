@@ -5,7 +5,7 @@ export interface Device {
   device_id: string;
   name: string;
   device_token?: string;
-  owner_id: string;
+  owner_id?: string;
   created_at: string;
 }
 

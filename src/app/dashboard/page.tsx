@@ -14,7 +14,6 @@ import {
   TrendingUp,
   Radio
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import StatusBadge from '@/components/StatusBadge';
 import GpsMapCard from '@/components/GpsMapCard';
 import ControlPanel from '@/components/ControlPanel';
@@ -30,23 +29,20 @@ export default function DashboardOverviewPage() {
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
 
-  // Fetch telemetry & commands
+  // Fetch telemetry & commands from backend API
   const fetchDashboardData = useCallback(async (isBackground = false) => {
     if (!isBackground) setRefreshing(true);
 
     try {
-      const supabase = createClient();
-
       // 1. Fetch latest sensor readings (last 30 records for chart & state)
-      const { data: telemetryData, error: telemetryErr } = await supabase
-        .from('sensor_readings')
-        .select('*')
-        .eq('device_id', deviceId)
-        .order('created_at', { ascending: false })
-        .limit(30);
-
-      if (telemetryData) {
+      const res = await fetch(`/api/readings?deviceId=${deviceId}&limit=30`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const telemetryData: SensorReading[] = json.readings || [];
         setReadings(telemetryData);
+
         if (telemetryData.length > 0) {
           const latest = telemetryData[0];
           setLastSeen(latest.created_at);
@@ -62,17 +58,21 @@ export default function DashboardOverviewPage() {
         }
       }
 
-      // 2. Fetch latest command
-      const { data: cmdData } = await supabase
-        .from('device_commands')
-        .select('*')
-        .eq('device_id', deviceId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (cmdData) {
-        setLatestCommand(cmdData);
+      // 2. Fetch latest command status
+      const cmdRes = await fetch(`/api/fan-control?deviceId=${deviceId}`, {
+        cache: 'no-store',
+      });
+      if (cmdRes.ok) {
+        const cmdJson = await cmdRes.json();
+        if (cmdJson.mode) {
+          setLatestCommand({
+            id: cmdJson.command_id || 'cmd-default',
+            device_id: deviceId,
+            mode: cmdJson.mode,
+            created_at: new Date().toISOString(),
+            acknowledged_at: cmdJson.acknowledged_at || null,
+          });
+        }
       }
     } catch (err) {
       console.error('Error refreshing dashboard data:', err);
@@ -165,7 +165,7 @@ export default function DashboardOverviewPage() {
           <div>
             <h4 className="text-sm font-bold text-amber-200">DHT22 Sensor Hardware Warning</h4>
             <p className="text-xs text-amber-300/80 mt-0.5">
-              ESP32 reported an invalid reading (NaN). Safe-mode active: LED/cooling has been kept off in AUTO mode.
+              ESP32 reported an invalid reading (NaN). Safe-mode active: cooling has been kept off in AUTO mode.
             </p>
           </div>
         </div>
@@ -218,7 +218,7 @@ export default function DashboardOverviewPage() {
         {/* Remote LED State Card */}
         <div className="glass-panel p-5 rounded-2xl border border-slate-800">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider font-mono">LED / Actuator</span>
+            <span className="text-xs font-bold uppercase tracking-wider font-mono">Cooling / Fan</span>
             <Lightbulb className={`w-5 h-5 ${actualLedState ? 'text-amber-400' : 'text-slate-500'}`} />
           </div>
           <div className="mt-3 flex items-baseline space-x-2">
@@ -229,7 +229,7 @@ export default function DashboardOverviewPage() {
             </span>
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span>Reported Pin</span>
+            <span>Actuator Pin</span>
             <span className="text-slate-300">GPIO 25</span>
           </div>
         </div>
@@ -252,7 +252,7 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Middle Interactive Section: GPS Card & Control Panel */}
+      {/* Middle Interactive Section: Actuator Control Panel & GPS Map */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ControlPanel
           deviceId={deviceId}
@@ -260,7 +260,7 @@ export default function DashboardOverviewPage() {
           actualLedState={actualLedState}
           latestCommand={latestCommand}
           isOnline={isOnline}
-          onModeChangeSuccess={(newMode) => {
+          onModeChangeSuccess={() => {
             fetchDashboardData(true);
           }}
         />
@@ -282,7 +282,7 @@ export default function DashboardOverviewPage() {
             <div>
               <h3 className="text-sm font-bold text-slate-100">Live Environmental Telemetry Stream</h3>
               <p className="text-[11px] text-slate-400 font-mono">
-                Recent 30 Data Ingestions (5s Intervals)
+                Recent 30 Data Ingestions (Live Auto-Polling)
               </p>
             </div>
           </div>
