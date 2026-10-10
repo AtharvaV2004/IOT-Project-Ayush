@@ -36,15 +36,15 @@
 // ============================================================================
 // CONFIGURATION & CREDENTIALS (Update with your own settings)
 // ============================================================================
-const char* WIFI_SSID     = "motorola edge 50 pro";
-const char* WIFI_PASSWORD = "Atharva123";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // Base URL of your deployed Vercel API (No trailing slash)
-const char* API_BASE_URL  = "https://iot-project-ayush.vercel.app";
+const char* API_BASE_URL  = "https://your-app.vercel.app";
 
 // Authentication & Device Identity
 const char* DEVICE_ID     = "CC001";
-const char* DEVICE_TOKEN  = "coldchain_secret_device_token_2026"; // Must match backend token
+const char* DEVICE_TOKEN  = "YOUR_SECRET_DEVICE_TOKEN"; // Must match backend token
 
 // If using HTTPS without Root CA verification for development, set to true.
 // For strict production security, provide Root CA certificate.
