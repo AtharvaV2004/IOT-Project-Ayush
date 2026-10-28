@@ -101,7 +101,15 @@ export async function POST(request: NextRequest) {
       .eq('device_id', device_id)
       .single();
 
-    if (deviceErr || !device) {
+    if (deviceErr) {
+      console.error('[API /api/sensor-data] Device lookup error:', deviceErr);
+      return NextResponse.json(
+        { error: 'Service Unavailable: Device registry could not be queried' },
+        { status: 503 }
+      );
+    }
+
+    if (!device) {
       return NextResponse.json(
         { error: 'Forbidden: Device not found or unregistered' },
         { status: 403 }

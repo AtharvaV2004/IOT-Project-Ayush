@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ControlMode } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 // ============================================================================
 // GET: Polled by ESP32 or Dashboard to retrieve the latest desired control mode
@@ -20,6 +22,21 @@ export async function GET(request: NextRequest) {
       .select('id, device_id, device_token')
       .eq('device_id', deviceId)
       .maybeSingle();
+
+    if (devErr) {
+      console.error('[API /api/fan-control GET] Device lookup error:', devErr);
+      return NextResponse.json(
+        { error: 'Service Unavailable: Device registry could not be queried' },
+        { status: 503 }
+      );
+    }
+
+    if (!device) {
+      return NextResponse.json(
+        { error: 'Not Found: Device is not registered' },
+        { status: 404 }
+      );
+    }
 
     // Token authentication is required for ESP32 hardware polls if header is present
     const token = request.headers.get('X-Device-Token') || request.headers.get('x-device-token');
@@ -102,11 +119,26 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Verify device exists or create if CC001
-    const { data: device } = await supabase
+    const { data: device, error: deviceErr } = await supabase
       .from('devices')
       .select('id, device_id')
       .eq('device_id', deviceId)
       .maybeSingle();
+
+    if (deviceErr) {
+      console.error('[API /api/fan-control POST] Device lookup error:', deviceErr);
+      return NextResponse.json(
+        { error: 'Service Unavailable: Device registry could not be queried' },
+        { status: 503 }
+      );
+    }
+
+    if (!device) {
+      return NextResponse.json(
+        { error: 'Not Found: Device is not registered' },
+        { status: 404 }
+      );
+    }
 
     // Insert new command into device_commands using admin privileges
     const { data: newCmd, error: insertErr } = await supabase

@@ -221,7 +221,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser:
 
 - **ESP32 prints `HTTP Error: -1` or Connection Timeout**:
   - Verify your Wi-Fi SSID and password.
+  - ESP32 supports 2.4 GHz Wi-Fi only. For a phone hotspot, disable 5 GHz/6 GHz or select a `2.4 GHz`/`compatibility` band, and disable automatic hotspot shutdown.
+  - Keep the ESP32 near the access point while testing and confirm the hotspot allows new devices.
   - If testing locally, ensure your computer and ESP32 are on the same 2.4GHz Wi-Fi network and firewall allows incoming connections on port 3000.
+  - After changing Wi-Fi settings, flash the firmware again and watch for `[WIFI] Connected successfully!` plus an IP address before checking telemetry.
+- **ESP32 prints HTTP error `-11` (`read Timeout`)**:
+  - This means Wi-Fi connected, but the Vercel/Supabase API did not respond before the request timeout. The firmware allows 15 seconds for the deployed API.
+  - Check the Vercel deployment logs and confirm the Supabase environment variables are present and valid. A healthy telemetry request should print `[UPLOAD] Success! HTTP Code: 200`.
 - **OLED Displays "DHT22: SENSOR ERR"**:
   - Check the wiring on GPIO 4 and ensure a 4.7kΩ to 10kΩ pull-up resistor is between VCC (3.3V) and DATA.
 - **GPS displays "No Fix"**:

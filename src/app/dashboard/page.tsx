@@ -34,8 +34,8 @@ export default function DashboardOverviewPage() {
     if (!isBackground) setRefreshing(true);
 
     try {
-      // 1. Fetch latest sensor readings (last 30 records for chart & state)
-      const res = await fetch(`/api/readings?deviceId=${deviceId}&limit=30`, {
+      // 1. Fetch latest sensor readings (last 30 records for chart & state) with cachebuster
+      const res = await fetch(`/api/readings?deviceId=${deviceId}&limit=30&_t=${Date.now()}`, {
         cache: 'no-store',
       });
       if (res.ok) {
@@ -47,11 +47,9 @@ export default function DashboardOverviewPage() {
           const latest = telemetryData[0];
           setLastSeen(latest.created_at);
 
-          // Calculate online status: if last reading < 30 seconds ago
-          const diffSeconds = Math.floor(
-            (new Date().getTime() - new Date(latest.created_at).getTime()) / 1000
-          );
-          setIsOnline(diffSeconds <= 30);
+          // Calculate online status: if last reading < 45 seconds ago (accounting for clock drift)
+          const diffSeconds = (new Date().getTime() - new Date(latest.created_at).getTime()) / 1000;
+          setIsOnline(diffSeconds >= -10 && diffSeconds <= 45);
         } else {
           setIsOnline(false);
           setLastSeen(null);
@@ -59,7 +57,7 @@ export default function DashboardOverviewPage() {
       }
 
       // 2. Fetch latest command status
-      const cmdRes = await fetch(`/api/fan-control?deviceId=${deviceId}`, {
+      const cmdRes = await fetch(`/api/fan-control?deviceId=${deviceId}&_t=${Date.now()}`, {
         cache: 'no-store',
       });
       if (cmdRes.ok) {

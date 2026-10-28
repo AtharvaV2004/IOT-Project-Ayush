@@ -36,15 +36,15 @@
 // ============================================================================
 // CONFIGURATION & CREDENTIALS (Update with your own settings)
 // ============================================================================
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "motorola edge 50 pro";
+const char* WIFI_PASSWORD = "Atharva123";
 
 // Base URL of your deployed Vercel API (No trailing slash)
-const char* API_BASE_URL  = "https://your-app.vercel.app";
+const char* API_BASE_URL  = "https://iot-project-ayush.vercel.app";
 
 // Authentication & Device Identity
 const char* DEVICE_ID     = "CC001";
-const char* DEVICE_TOKEN  = "YOUR_SECRET_DEVICE_TOKEN"; // Must match backend token
+const char* DEVICE_TOKEN  = "coldchain_secret_device_token_2026"; // Must match backend token
 
 // If using HTTPS without Root CA verification for development, set to true.
 // For strict production security, provide Root CA certificate.
@@ -74,9 +74,10 @@ const bool INSECURE_SSL_FOR_DEV = true;
 // ============================================================================
 const unsigned long DHT_READ_INTERVAL     = 2500; // Read DHT every 2.5 seconds
 const unsigned long SENSOR_UPLOAD_INTERVAL= 5000; // Upload telemetry every 5.0 seconds
-const unsigned long COMMAND_POLL_INTERVAL = 2000; // Poll commands every 2.0 seconds
+const unsigned long COMMAND_POLL_INTERVAL = 3000; // Poll commands every 3.0 seconds
 const unsigned long OLED_REFRESH_INTERVAL = 1000; // Refresh display every 1.0 second
 const unsigned long WIFI_RETRY_INTERVAL   = 10000;// Retry Wi-Fi reconnect every 10 seconds
+const unsigned long API_REQUEST_TIMEOUT   = 15000;// Vercel/Supabase may need several seconds
 
 // Cold Chain Temperature Threshold
 const float TEMP_THRESHOLD_HIGH = 8.0; // Cold chain warning threshold (>8.0°C)
@@ -233,6 +234,7 @@ void connectWiFi() {
   display.display();
 
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long startAttempt = millis();
@@ -246,15 +248,20 @@ void connectWiFi() {
     Serial.print(F("[WIFI] IP Address: "));
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println(F("\n[WIFI] Connection failed. Will retry in background."));
+    Serial.printf("\n[WIFI] Connection failed (status: %d). Will retry in background.\n",
+                  static_cast<int>(WiFi.status()));
   }
 }
 
 void checkWiFiConnection() {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println(F("[WIFI] Lost connection. Attempting reconnect..."));
+    Serial.printf("[WIFI] Lost connection (status: %d). Attempting reconnect...\n",
+                  static_cast<int>(WiFi.status()));
     WiFi.disconnect();
-    WiFi.reconnect();
+    delay(100);
+    // WiFi.reconnect() can fail when the access point or hotspot has
+    // discarded the station. Start a fresh association instead.
+    connectWiFi();
   }
 }
 
@@ -359,7 +366,7 @@ void uploadSensorData() {
 
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Token", DEVICE_TOKEN);
-  http.setTimeout(4000);
+  http.setTimeout(API_REQUEST_TIMEOUT);
 
   // Construct JSON Payload
   StaticJsonDocument<384> doc;
@@ -422,7 +429,7 @@ void pollControlCommand() {
   }
 
   http.addHeader("X-Device-Token", DEVICE_TOKEN);
-  http.setTimeout(3000);
+  http.setTimeout(API_REQUEST_TIMEOUT);
 
   int httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK || httpCode == 200) {

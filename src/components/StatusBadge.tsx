@@ -8,7 +8,8 @@ interface StatusBadgeProps {
 export default function StatusBadge({ isOnline, lastSeen }: StatusBadgeProps) {
   const formatTimeAgo = (isoString?: string | null) => {
     if (!isoString) return 'Never connected';
-    const seconds = Math.floor((new Date().getTime() - new Date(isoString).getTime()) / 1000);
+    const rawSeconds = Math.floor((new Date().getTime() - new Date(isoString).getTime()) / 1000);
+    const seconds = Math.max(0, rawSeconds);
     if (seconds < 5) return 'Just now';
     if (seconds < 60) return `${seconds}s ago`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
